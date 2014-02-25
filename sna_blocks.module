@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * @file
+ * Provides Slideshow style options for Views.
+ */
+
+/**
+ * Implement hook_theme().
+ */
+function sna_blocks_theme($existing, $type, $theme, $path) {
+  return array(
+    'sna_blocks_main_section' => array(
+      'variables' => array(
+        'value' => NULL,
+        'archive_items' => NULL,
+        'year' => NULL,
+        'month' => NULL,
+      ),
+      'file' => 'theme/sna_blocks.theme.inc',
+      'pattern' => 'sna_blocks_main_section__',
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function sna_blocks_views_api() {
+  return array(
+    'api' => '3',
+    'path' => drupal_get_path('module', 'sna_blocks'),
+  );
+}
+
+/**
+ * Need to have preprocess functions here because drupal doesn't cache them
+ * correctly in the theme.inc file.
+ *
+ * If you would like to override the preprocess functions make sure to look at
+ * the associated function in theme.inc.
+ */
+
+// Trying to make sure the theme.inc get's loaded.
+include_once('theme/sna_blocks.theme.inc');
+
+function template_preprocess_sna_blocks(&$vars) {
+  _sna_blocks_preprocess_sna_blocks($vars);
+}

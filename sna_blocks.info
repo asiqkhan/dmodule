@@ -1,0 +1,6 @@
+name = simple node arvhive
+descriptions = Rewritting Simple node arvhive for views plugin
+core = 7.x
+package = custom
+
+files[] = sna_blocks_plugin_style_snablocks.inc
