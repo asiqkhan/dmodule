@@ -4,6 +4,7 @@
  * Defines the View Style Plugins for Views Slideshow module.
  */
 
+
 /**
  * Implements hook_views_plugins().
  */
