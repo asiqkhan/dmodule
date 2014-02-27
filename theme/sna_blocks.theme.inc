@@ -133,7 +133,7 @@ function _sna_blocks_archivehtml($results, $display_year, $display_month, $archi
         foreach ($months as $month => $nodes) {
           $month_value = explode(' ', $month);
           // $month_value[0] contain month and $month_value[1] conatian count.
-          $month_url = $archive_page . '/' . $year_value[0] . '/' . date('m', strtotime($month_value[0], '1'));
+          $month_url = $archive_page . '/' . $year_value[0] . '/' . date('m', strtotime($month_value[0]));
 
           // Check for active month and block.
           $expand_month = $display_year == $year_value[0] && $display_month == $month_value[0] ? TRUE : FALSE;
