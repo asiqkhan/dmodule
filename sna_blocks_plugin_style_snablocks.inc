@@ -15,35 +15,42 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
     );
     $form['sna_view_name'] = array(
       '#type' => 'textfield',
-      '#title' => t('Archive view name'),
+      '#title' => t('View machine name'),
       '#default_value' => $this->options['sna_view_name'] ? $this->options['sna_view_name'] : $this->view->name,
       '#size' => 60,
       '#maxlength' => 128,
       '#required' => TRUE,
-      '#description' => t('Optional. In the menu, the heavier items will sink and the lighter items will be positioned nearer the top.'),
+      '#description' => t('Achive view machine name.'),
     );
     $form['sna_view_display_id'] = array(
       '#type' => 'textfield',
-      '#title' => t('Archive view display ID'),
+      '#title' => t('Vew page display ID'),
       '#default_value' => $this->options['sna_view_display_id'] ? $this->options['sna_view_display_id'] : '',
       '#size' => 60,
       '#maxlength' => 128,
       '#required' => TRUE,
-      '#description' => t('Optional. In the menu, the heavier items will sink and the lighter items will be positioned nearer the top.'),
+      '#description' => t('Archive View page display id. expample - page or page_1 etc.'),
     );
     $form['sna_view_page_url'] = array(
       '#type' => 'textfield',
-      '#title' => t('Archive view Page URL'),
+      '#title' => t('View Page URL'),
       '#default_value' => $this->options['sna_view_page_url'] ? $this->options['sna_view_page_url'] : '',
       '#size' => 60,
       '#maxlength' => 128,
       '#required' => TRUE,
-      '#description' => t('Optional. In the menu, the heavier items will sink and the lighter items will be positioned nearer the top.'),
+      '#description' => t('Archive views page path.'),
     );
-    $form['sna_user_jquery'] = array(
+
+    $disabled_jquerymenu_option = TRUE;
+    if (module_exists('jquerymenu')) {
+      $disabled_jquerymenu_option = FALSE;
+    }
+
+    $form['sna_use_jquery'] = array(
       '#type' => 'checkbox',
-      '#default_value' => $this->options['sna_user_jquery'] ? $this->options['sna_user_jquery'] : 0 ,
-      '#title' => t('Use Jquery to theme archive blocks.'),
+      '#default_value' => $this->options['sna_use_jquery'] ? $this->options['sna_use_jquery'] : 0 ,
+      '#title' => t('check this box if you want to use <a href="http://drupal.org/project/jquerymenu" target="_blank">Jquerymenu module </a> to theme archive blocks.'),
+      '#disabled' => $disabled_jquerymenu_option,
     );
     // Wrap close
     $form['sna_blocks_wrapper_close'] = array(

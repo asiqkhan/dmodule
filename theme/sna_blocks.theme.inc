@@ -17,10 +17,11 @@ function _sna_blocks_preprocess_sna_blocks(&$vars) {
       }
       $results = _sna_blocks_resultset($results);
       $archive_page = $vars['options']['sna_view_page_url'];
+      $use_jquerymenu = isset($vars['options']['sna_use_jquery']) && $vars['options']['sna_use_jquery'] ? $vars['options']['sna_use_jquery'] : 0;
       $arg = explode('/', $_GET['q']);
       $display_year = $arg[0] == $archive_page && isset($arg[1]) && $arg[1] != '' && is_numeric($arg[1]) ? $arg[1] : '';
       $display_month = $arg[0] == $archive_page && isset($arg[2]) && $arg[2] != '00' && is_numeric($arg[2]) ? date('F', mktime(0, 0, 0, $arg[2])) : '';
-      $vars['archive_block'] = _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page);
+      $vars['archive_block'] = _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page, $use_jquerymenu);
     }
     else {
       $vars['archive_block'] = t('No Result found');
@@ -79,15 +80,16 @@ function _sna_blocks_resultset($results) {
  *   Numeric representation of a month, with leading zeros.
  * @param string $archive_page
  *   View name.
+ * @param string $use_jquerymenu
+ *   Options to use jquerymenu 0 or 1
  *
  * @return string
  *   An HTML string.
  */
 
-function _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page) {
+function _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page, $use_jquerymenu) {
   $output = t('No Content Posted.');
   $archive_items = 0;
-  $use_jquerymenu = 0;
   if ($node = menu_get_object()) {
     $node_created = $node->created;
     $display_year = date('Y', $node_created);
