@@ -11,11 +11,12 @@ function _sna_blocks_preprocess_sna_blocks(&$vars) {
   try {
     $results = $vars['view']->result;
     if (!empty($results)) {
-      //check for node id, node title and date created
+      // Check for node id, node title and date created.
       if (!isset($vars['view']->result[0]->node_title)) {
         drupal_set_message(t('Add node title'));
       }
-      $results = _sna_blocks_resultset($results);
+      $field_name = isset($vars['options']['field_name']) ? $vars['options']['field_name'] : 'node_created';
+      $results = _sna_blocks_resultset($results, $field_name);
       $archive_page = $vars['options']['sna_view_page_url'];
       $use_jquerymenu = isset($vars['options']['sna_use_jquery']) && $vars['options']['sna_use_jquery'] ? $vars['options']['sna_use_jquery'] : 0;
       $arg = explode('/', $_GET['q']);
@@ -41,12 +42,27 @@ function _sna_blocks_preprocess_sna_blocks(&$vars) {
  * @return array
  *   An associate arrry.
  */
-
-function _sna_blocks_resultset($results) {
+function _sna_blocks_resultset($results, $field_name) {
   $archive = array();
+  $field_query = 'node_created';
   // Adding year and month field.
   foreach ($results as $row) {
-    $archive[date('Y', $row->node_created)][date('F', $row->node_created)][$row->nid] = $row->node_title;
+    if ($field_name != 'node_created') {
+      $field_query = 'field_' . $field_name;
+      // Even if the field is multiple type it will accpet only first delta.
+      if (!empty($row->{$field_query}) && isset($row->{$field_query}[0]['raw']['value'])) {
+        $date_timestamp = $row->{$field_query}[0]['raw']['value'];
+      }
+      else {
+        // If field is empty don't include.
+        continue;
+      }
+    }
+    else {
+      $date_timestamp = $row->{$field_query};
+    }
+
+    $archive[date('Y', $date_timestamp)][date('F', $date_timestamp)][$row->nid] = $row->node_title;
   }
   // Adding count field.
   if (!empty($archive)) {
@@ -86,18 +102,16 @@ function _sna_blocks_resultset($results) {
  * @return string
  *   An HTML string.
  */
-
 function _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page, $use_jquerymenu) {
   $output = t('No Content Posted.');
   $archive_items = 0;
+  $year_items = $trail = array();
+
   if ($node = menu_get_object()) {
     $node_created = $node->created;
     $display_year = date('Y', $node_created);
     $display_month = date('F', $node_created);
   }
-
-  $year_items = $trail = array();
-
 
   // Build the HTML.
   if (!empty($results)) {
@@ -114,8 +128,7 @@ function _sna_blocks_archivehtml($results, $display_year, $display_month, $archi
       $children_months = array();
       // If Using Jquery Menu.
       if ($use_jquerymenu) {
-        unset($year_item);
-        unset($month_items);
+        $year_item = $month_items = array();
         $year_item['link']['href'] = $year_url;
         $year_item['link']['title'] = t($year_value[0]) . ' ' . $year_value[1];
         $year_item['link']['has_children'] = 1;
@@ -141,8 +154,7 @@ function _sna_blocks_archivehtml($results, $display_year, $display_month, $archi
           $children_nodes = array();
           // If Using Jquery Menu.
           if ($use_jquerymenu) {
-            unset($month_item);
-            unset($node_items);
+            $month_item = $node_items = array();
             $month_item['link']['href'] = $month_url;
             $month_item['link']['title'] = t($month_value[0]) . ' ' . $month_value[1];
             $month_item['link']['has_children'] = 1;
@@ -162,7 +174,7 @@ function _sna_blocks_archivehtml($results, $display_year, $display_month, $archi
             foreach ($nodes as $nid => $title) {
               // If Using Jquery Menu.
               if ($use_jquerymenu) {
-                unset($node_item);
+                $node_item = array();
               }
               // $archive_items number of nodes display in expanded archive.
               if ($count <= $archive_items || $archive_items == 0) {

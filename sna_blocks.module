@@ -21,7 +21,7 @@ function sna_blocks_views_api() {
  */
 
 // Trying to make sure the theme.inc get's loaded.
-include_once('theme/sna_blocks.theme.inc');
+include_once 'theme/sna_blocks.theme.inc';
 
 function template_preprocess_sna_blocks(&$vars) {
   _sna_blocks_preprocess_sna_blocks($vars);

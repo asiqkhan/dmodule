@@ -35,26 +35,80 @@ function sna_blocks_views_query_alter(&$view, &$query) {
   $key = $view->name . '_' . $view->current_display;
   $sna_settings = variable_get('sna_settings', array());
   if (isset($sna_settings[$key]) && $sna_settings[$key]) {
-    $archive_page = $view->display_handler->display->display_options['path'];;
+    $archive_page = $view->display_handler->display->display_options['path'];
+    $field_name = $sna_settings[$key];
     $display_year = $display_month = '';
-    $arg = explode('/', $_GET['q']);
-    $display_year = $arg[0] == $archive_page && isset($arg[1]) && $arg[1] != '' && is_numeric($arg[1]) ? $arg[1] : '';
-    $display_month = $arg[0] == $archive_page && isset($arg[2]) && $arg[2] != '00' && is_numeric($arg[2]) ? $arg[2] : '';
 
+    $display_year = isset($view->args[0]) && $view->args[0] != '' && is_numeric($view->args[0]) ? $view->args[0] : '';
+    $display_month = isset($view->args[1]) && $view->args[1] != '00' && is_numeric($view->args[1]) ? $view->args[1] : '';
+
+    $placeholder = 'node_created';
+    if ($field_name != 'node_created') {
+      $field = 'sna_field_data_' . $field_name . '.' . $field_name . '_value';
+      $placeholder = ':field_data_' . $field_name . '_' . $field_name . '_value';
+    }
+    else {
+      $field_name = 'created';
+      $field = 'node.created';
+
+      $placeholder = ':node_created';
+    }
+
+    $format = $value = '';
     if (!empty($display_year)) {
-      $query->where[1]['conditions'][] = array(
-        'field' => "FROM_UNIXTIME(node.created, '%Y') = " . $display_year,
-        'value' => array(),
-        'operator' => 'formula',
-      );
+      $format = 'Y';
+      $value = $display_year;
+    }
+    if (!empty($display_month)) {
+      $format = 'Y-m';
+      $value = $display_year . '-' . $display_month;
     }
 
-    if (!empty($display_month)) {
-      $query->where[1]['conditions'][] = array(
-        'field' => "FROM_UNIXTIME(node.created, '%m') = " . $display_month,
-        'value' => array(),
-        'operator' => 'formula',
-      );
+    $group = 0;
+    // Check for a group.
+    if (!isset($query->where[$group])) {
+      $query->set_where_group('AND', $group);
     }
+
+    $data_obj = new date_sql_handler(DATE_UNIX);
+
+    $field_obj = field_info_field($field_name); dsm($field_obj);
+    if (!empty($field_obj) && !empty($field_obj['type'])) {
+      $data_obj->date_type = $field_obj['type'];
+    }
+    $data_obj->db_timezone = date_get_timezone_db($field_obj['settings']['tz_handling']);
+    $data_obj->local_timezone = date_get_timezone($field_obj['settings']['tz_handling']);
+
+
+    $comp_date = new DateObject($value, date_default_timezone(), $format);
+    $field = $data_obj->sql_field($field, NULL, $comp_date);
+    $field = $data_obj->sql_format($format, $field);
+
+    if (!empty($value) && $value != '') {
+
+      $alias = 'sna_field_data_' . $field_name;
+      $join = new views_join();
+      $join->table = 'field_data_' . $field_name;
+      $join->left_table = 'node';
+      $join->field = 'entity_id';
+      $join->left_field = 'nid';
+      $join->type = 'LEFT';
+
+      // Do the actual join
+      $query->table_queue[$field_name] = array (
+        'num' => 1,
+        'alias' => $alias,
+        'table' => 'field_data_' . $field_name,
+        'relationship' => 'node',
+        'join' => $join,
+      );
+
+
+
+      $query->add_where_expression($group, "$field = $placeholder", array($placeholder => $value));
+    }
+
+    dsm($view);
+    dsm($query);
   }
 }
