@@ -51,7 +51,12 @@ function _sna_blocks_resultset($results, $field_name) {
       $field_query = 'field_' . $field_name;
       // Even if the field is multiple type it will accpet only first delta.
       if (!empty($row->{$field_query}) && isset($row->{$field_query}[0]['raw']['value'])) {
+        // Check field is timestamp
+        // If not convert string date to unix timestamp.
         $date_timestamp = $row->{$field_query}[0]['raw']['value'];
+        if (!(is_numeric($date_timestamp) && (int)$date_timestamp == $date_timestamp)) {
+          $date_timestamp = strtotime($row->{$field_query}[0]['raw']['value']);
+        }
       }
       else {
         // If field is empty don't include.

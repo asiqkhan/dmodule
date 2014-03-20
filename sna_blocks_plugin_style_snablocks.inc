@@ -77,9 +77,49 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
     );
   }
 
+  // Run any validation on the form settings.
+  function options_validate(&$form, &$form_state) {
+    $sna_settings = variable_get('sna_settings', array());
+    $current_setting = $form_state['view']->display_handler->display->display_options['style_options'];
+    // Check for page display.
+    if (strtolower(substr($form_state['values']['style_options']['sna_view_display_id'],0,4)) != 'page') {
+      form_set_error('sna_view_display_id', t('Invalid page display.'));
+    }
+    else {
+      // Validate viewname and display_id
+      $query = db_select('views_view', 'V');
+      $query->Fields('V', array('vid', 'name'));
+      $query->addJoin('INNER', 'views_display', 'VD', 'V.vid = VD.vid');
+      $query->addField('VD', 'display_title');
+      $query->condition('V.name', $form_state['values']['style_options']['sna_view_name']);
+      $query->condition('VD.id', $form_state['values']['style_options']['sna_view_display_id']);
+      $result = $query->execute()->fetchAll();
+      if (!$result) {
+        form_set_error('sna_view_display_id', t('Invalid page display.'));
+      }
+    }
+
+    $entered_key = $form_state['values']['style_options']['sna_view_name'] . '_' . $form_state['values']['style_options']['sna_view_display_id'];
+    if (!empty($current_setting)) {
+      // Existing settins.
+      $saved_key = $current_setting['sna_view_name'] . '_' . $current_setting['sna_view_display_id'];
+      if ($entered_key != $saved_key) {
+        if ($sna_settings[$entered_key]) {
+          form_set_error('sna_view_display_id', t('Page is already in use!'));
+        }
+      }
+    }
+    else {
+      // New settings.
+      if ($sna_settings[$entered_key]) {
+        form_set_error('sna_view_display_id', t('Page is already in use!'));
+      }
+    }
+  }
+
   // Run any necessary actions on submit.
   function options_submit(&$form, &$form_state) {
-    $sna_settings = variable_get('sna_settings', array()); dsm($form_state);
+    $sna_settings = variable_get('sna_settings', array());
     $key = $form_state['values']['style_options']['sna_view_name'] . '_' . $form_state['values']['style_options']['sna_view_display_id'];
     unset($sna_settings[$key]);
     $sna_settings[$key] = $form_state['values']['style_options']['field_name'];
