@@ -38,6 +38,8 @@ function _sna_blocks_preprocess_sna_blocks(&$vars) {
  *
  * @param array $results
  *   Array contain views result.
+ * @param string $field_name
+ *   string contain field name.
  *
  * @return array
  *   An associate arrry.

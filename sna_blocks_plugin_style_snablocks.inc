@@ -50,14 +50,23 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
       '#description' => t('Archive views page path.'),
     );
 
+    // Set Default value for field_name.
+    $disabled_field_name = TRUE;
+    $default_field_name = 'node_created';
+    if (module_exists('date')) {
+      $disabled_field_name = FALSE;
+      $default_field_name = $this->options['field_name'] ? $this->options['field_name'] : 'node_created';
+    }
+
     $form['field_name'] = array(
       '#type' => 'textfield',
       '#title' => t('Field Name'),
-      '#default_value' => $this->options['field_name'] ? $this->options['field_name'] : 'node_created',
+      '#default_value' => $default_field_name,
       '#size' => 60,
       '#maxlength' => 128,
       '#required' => TRUE,
-      '#description' => t('Achive will created based on this field.'),
+      '#disabled' => $disabled_field_name,
+      '#description' => t('Achive will created based on field. Require <a href="http://drupal.org/project/date" target="_blank">Date module </a>'),
     );
 
     $disabled_jquerymenu_option = TRUE;
@@ -86,7 +95,7 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
       form_set_error('sna_view_display_id', t('Invalid page display.'));
     }
     else {
-      // Validate viewname and display_id
+      // Validate viewname and display_id.
       $query = db_select('views_view', 'V');
       $query->Fields('V', array('vid', 'name'));
       $query->addJoin('INNER', 'views_display', 'VD', 'V.vid = VD.vid');
