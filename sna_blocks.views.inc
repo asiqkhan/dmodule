@@ -114,3 +114,4 @@ function sna_blocks_views_query_alter(&$view, &$query) {
     }
   }
 }
+

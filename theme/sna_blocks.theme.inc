@@ -10,6 +10,10 @@
 function _sna_blocks_preprocess_sna_blocks(&$vars) {
   try {
     $results = $vars['view']->result;
+    $archive_page = $vars['options']['sna_view_page_url'];
+    $arg = explode('/', $_GET['q']);
+    $use_jquerymenu = isset($vars['options']['sna_use_jquery']) && $vars['options']['sna_use_jquery'] ? $vars['options']['sna_use_jquery'] : 0;
+    $display_year = $display_month = '';
     if (!empty($results)) {
       // Check for node id, node title and date created.
       if (!isset($vars['view']->result[0]->node_title)) {
@@ -17,11 +21,31 @@ function _sna_blocks_preprocess_sna_blocks(&$vars) {
       }
       $field_name = isset($vars['options']['field_name']) ? $vars['options']['field_name'] : 'node_created';
       $results = _sna_blocks_resultset($results, $field_name);
-      $archive_page = $vars['options']['sna_view_page_url'];
-      $use_jquerymenu = isset($vars['options']['sna_use_jquery']) && $vars['options']['sna_use_jquery'] ? $vars['options']['sna_use_jquery'] : 0;
-      $arg = explode('/', $_GET['q']);
-      $display_year = $arg[0] == $archive_page && isset($arg[1]) && $arg[1] != '' && is_numeric($arg[1]) ? $arg[1] : '';
-      $display_month = $arg[0] == $archive_page && isset($arg[2]) && $arg[2] != '00' && is_numeric($arg[2]) ? date('F', mktime(0, 0, 0, $arg[2])) : '';
+      // Check for node view.
+      // Do the node exist in archive.
+      if ($node = menu_get_object()) {
+        $nid = $node->nid;
+        if ($field_name == 'node_created') {
+          $node_created = $node->created;
+          $display_year = date('Y', $node_created);
+          $display_month = date('F', $node_created);
+        }
+        else {
+          // Check for field archive type.
+          $date = new DateTime($node->{$field_name}[LANGUAGE_NONE][0]['value'], new DateTimeZone($node->{$field_name}[LANGUAGE_NONE][0]['timezone']));
+          $display_year = $date->format('Y');
+          $display_month = $date->format('F');
+        }
+        if (!isset($results[$display_year][$display_month][$nid])) {
+          $display_year = $display_month = '';
+        }
+      }
+      else {
+        $display_year = $arg[0] == $archive_page && isset($arg[1]) && $arg[1] != '' && is_numeric($arg[1]) ? $arg[1] : '';
+        $display_month = $arg[0] == $archive_page && isset($arg[2]) && $arg[2] != '00' && is_numeric($arg[2]) ? date('F', mktime(0, 0, 0, $arg[2])) : '';
+      }
+
+      $results = _sna_blocks_resultset_add_count($results);
       $vars['archive_block'] = _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page, $use_jquerymenu);
     }
     else {
@@ -71,6 +95,20 @@ function _sna_blocks_resultset($results, $field_name) {
 
     $archive[date('Y', $date_timestamp)][date('F', $date_timestamp)][$row->nid] = $row->node_title;
   }
+
+  return $archive;
+}
+
+/**
+ * Format views results to add year, month and count.
+ *
+ * @param array $archive
+ *   Array contain views result.
+ *
+ * @return array
+ *   An associate arrry.
+ */
+function _sna_blocks_resultset_add_count($archive) {
   // Adding count field.
   if (!empty($archive)) {
     foreach ($archive as $year => $month) {
@@ -88,6 +126,7 @@ function _sna_blocks_resultset($results, $field_name) {
 
   return $archive;
 }
+
 
 /**
  * Theme the result set to HTML.
@@ -111,14 +150,7 @@ function _sna_blocks_resultset($results, $field_name) {
  */
 function _sna_blocks_archivehtml($results, $display_year, $display_month, $archive_page, $use_jquerymenu) {
   $output = t('No Content Posted.');
-  $archive_items = 0;
   $year_items = $trail = array();
-
-  if ($node = menu_get_object()) {
-    $node_created = $node->created;
-    $display_year = date('Y', $node_created);
-    $display_month = date('F', $node_created);
-  }
 
   // Build the HTML.
   if (!empty($results)) {
@@ -184,17 +216,15 @@ function _sna_blocks_archivehtml($results, $display_year, $display_month, $archi
                 $node_item = array();
               }
               // $archive_items number of nodes display in expanded archive.
-              if ($count <= $archive_items || $archive_items == 0) {
-                $children_nodes[] = l($title, 'node/' . $nid);
-                // If Using Jquery Menu.
-                if ($use_jquerymenu) {
-                  $node_item['link']['href'] = 'node/' . $nid;
-                  $node_item['link']['title'] = $title;
-                  $node_item['link']['has_children'] = 0;
-                  $node_item['link']['expanded'] = 0;
-                  $node_item['link']['options']['attributes'] = array();
-                  $node_item['link']['hidden'] = 0;
-                }
+              $children_nodes[] = l($title, 'node/' . $nid);
+              // If Using Jquery Menu.
+              if ($use_jquerymenu) {
+                $node_item['link']['href'] = 'node/' . $nid;
+                $node_item['link']['title'] = $title;
+                $node_item['link']['has_children'] = 0;
+                $node_item['link']['expanded'] = 0;
+                $node_item['link']['options']['attributes'] = array();
+                $node_item['link']['hidden'] = 0;
               }
               $count = $count != 0 ? $count + 1 : 0;
 

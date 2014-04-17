@@ -33,7 +33,7 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
     );
     $form['sna_view_display_id'] = array(
       '#type' => 'textfield',
-      '#title' => t('View page display ID'),
+      '#title' => t('View page display id.'),
       '#default_value' => $this->options['sna_view_display_id'] ? $this->options['sna_view_display_id'] : '',
       '#size' => 60,
       '#maxlength' => 128,
@@ -42,7 +42,7 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
     );
     $form['sna_view_page_url'] = array(
       '#type' => 'textfield',
-      '#title' => t('View Page URL'),
+      '#title' => t('View page display URL.'),
       '#default_value' => $this->options['sna_view_page_url'] ? $this->options['sna_view_page_url'] : '',
       '#size' => 60,
       '#maxlength' => 128,
@@ -107,7 +107,7 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
         form_set_error('sna_view_display_id', t('Invalid page display.'));
       }
     }
-
+    // Check is the page aleardy in use.
     $entered_key = $form_state['values']['style_options']['sna_view_name'] . '_' . $form_state['values']['style_options']['sna_view_display_id'];
     if (!empty($current_setting)) {
       // Existing settins.
@@ -126,7 +126,7 @@ class sna_blocks_plugin_style_snablocks extends views_plugin_style {
     }
   }
 
-  // Run any necessary actions on submit.
+  // Save settings on submit.
   function options_submit(&$form, &$form_state) {
     $sna_settings = variable_get('sna_settings', array());
     $key = $form_state['values']['style_options']['sna_view_name'] . '_' . $form_state['values']['style_options']['sna_view_display_id'];
