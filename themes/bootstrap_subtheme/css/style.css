@@ -2,6 +2,12 @@
  * This file should get overwritten if Method 1 is used. If Method 2 is chosen,
  * remove this comment and start adding your styles to this file.
  */
+body {
+  font-family: trebuchet ms,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: trebuchet ms,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
 .navbar-header {
     float: none;
 }
@@ -30,10 +36,23 @@
     font-weight: 900;
 }
 .navbar-default .navbar-nav > li > a {
-   color: #FFFFFF;
     font-family: trebuchet ms;
 }
 .navbar-default .navbar-brand:hover, .navbar-default .navbar-brand:focus {
     background-color: rgba(0, 0, 0, 0);
     color: #FFFFFF;
+}
+#navbar .navbar-collapse .menu.nav.navbar-nav {
+    padding-top: 10px;
+}
+.navbar-default .navbar-nav > li > a { color: #333333; border-radius: 10px;}
+.secondary-nav .navbar-nav > li > a { color: #FFFFFF}
+
+.navbar-default .navbar-nav > li > a:hover {
+    background-color: #E7E7E7;
+    color: #555555;
+}
+.secondary-nav .navbar-nav > li > a:hover {
+    background-color: inherit;
+    color: inherit;
 }
