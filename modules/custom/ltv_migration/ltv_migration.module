@@ -1,0 +1,299 @@
+<?php
+
+/**
+ * @file
+ * Module file for LTV migration.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function ltv_migration_menu() {
+  $items['admin/config/ltv_migration'] = array(
+    'title' => 'Shows Gallery Migration',
+    'description' => 'Migration module to import content.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ltv_migration_gallery_import'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'ltv_migration.admin.inc',
+  );
+
+  $items['admin/config/ltv_migration/shows_gallery_import'] = array(
+    'title' => 'Shows Gallery Import',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10
+  );
+
+  $items['movies'] = array(
+	  'title' => 'Movies',
+  	'page callback' => 'ltv_migration_text',
+    'page arguments' => array(1),
+	  'access arguments' => array('access content'),
+   	'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['movies/movies-index'] = array(
+	  'title' => 'Movies',
+  	'page callback' => 'ltv_migration_text',
+	  'access arguments' => array('access content'),
+   	'type' => MENU_NORMAL_ITEM,
+  );
+  $items['movies/lifetime-movie-network'] = array(
+	  'title' => 'Lifetime Movie Network Movies',
+  	'page callback' => 'ltv_migration_text',
+	  'access arguments' => array('access content'),
+   	'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_views_query_alter().
+ */
+function ltv_migration_views_query_alter(&$view, &$query) {
+  if ($view->name == 'article_test') {
+    dsm($query);
+  }
+}
+function ltv_migration_text() {
+	if (!(arg(0) == 'movies' && (arg(1) == '' || arg(1) == 'movies-index'))) {
+		drupal_not_found();
+	}
+
+  return "working";
+}
+
+function ltv_migration_feeds_before_import(FeedsSource $source) {
+ // Get import source.
+ $result = $source->importer->fetcher->fetch($source);
+ $result = $source->importer->parser->parse($source, $result);
+
+ // Get existing list of product attribures.
+ $existing_pas = array();
+ $vocs= taxonomy_get_vocabularies();
+ foreach($vocs as $voc) {
+  $existing_pas[] = trim($voc->name);
+ }
+
+	$field = ltv_migration_getfield();
+	$instance = ltv_migration_getinstance();
+
+ foreach($result->items as $key => $row) {
+  $product_category = $row['productcategory'];
+  foreach($row as $k => $attribute) {
+    if ($k != 'productcategory' && !empty($attribute)) {
+      $importing_pa = trim($product_category) . '-' . trim($attribute);
+      // Check product attribute already exist.
+      if (!in_array($importing_pa, $existing_pas)) {
+        // Create the product attribute.
+        $machine_readable = strtolower($importing_pa);
+        $machine_readable = preg_replace('@[^a-z0-9_]+@','_',$machine_readable);
+        taxonomy_vocabulary_save((object) array(
+          'name' => $importing_pa,
+          'machine_name' => $machine_readable,
+          'description' => t('Prodcut attribute used for !product_type.',array('!product_type' => trim($product_category))),
+          'module' => 'taxonomy',
+        ));
+
+        $vocabulary_id = db_query("SELECT vid FROM {taxonomy_vocabulary} where name =:name",array(":name" => $importing_pa))->fetchField();
+				if ($vocabulary_id) {
+					if (field_info_field('field_product_attr' . $vocabulary_id) == NULL) {
+						// Add field to product type.
+						$field['settings']['allowed_values'][0]['vocabulary'] = $machine_readable;
+						$field['storage']['details']['sql']['FIELD_LOAD_CURRENT'] = array(
+							'field_data_field_product_attr' . $vocabulary_id => array(
+								'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
+							),
+						);
+						$field['storage']['details']['sql']['FIELD_LOAD_REVISION'] = array(
+							'field_revision_field_product_attr' . $vocabulary_id => array(
+								'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
+							),
+						);
+						$field['field_name'] = 'field_product_attr' . $vocabulary_id;
+						field_create_field($field);
+					}
+					// Add Instance now.
+					$instance['label'] = $importing_pa;
+					$instance['widget']['weight'] = $vocabulary_id;
+					$instance['commerce_cart_settings']['attribute_widget_title'] = $importing_pa;
+					$instance['field_name'] = 'field_product_attr' . $vocabulary_id;
+					field_create_instance($instance);
+				}
+      }
+    }
+  }
+ }
+}
+
+/**
+* Implements hook_feeds_after_parse()
+*
+* Adds a key "fullname" to each result
+* @param $source
+*  FeedsSource object that describes the source that has been imported.
+* @param $result
+*   FeedsParserResult object that has been parsed from the source.
+*/
+function ltv_migration_feeds_after_parse(FeedsSource $source, FeedsParserResult $result) {
+  foreach($result->items as $key => $row) {
+    $product_category = $row['productcategory'];
+    foreach($row as $k => $v) {
+      if ($k != 'productcategory' && !empty($v)) {
+        if (is_array($v) && key($v) == 'attribute1') {
+          $result->items[$key]['attribute1'][0] = trim($product_category) . '-' . trim($v[0]);
+        }
+        else {
+          $result->items[$key]['attribute1'][] = trim($product_category) . '-' . trim($v);
+        }
+      }
+    }
+  }
+}
+
+function ltv_migration_getfield() {
+	return array(
+  'translatable' => '0',
+  'entity_types' => array(),
+  'settings' => array(
+    'allowed_values' => array(
+      array(
+        'vocabulary' => 'appliances_brand',
+        'parent' => '0',
+      ),
+    ),
+  ),
+  'storage' => array(
+    'type' => 'field_sql_storage',
+    'settings' => array(),
+    'module' => 'field_sql_storage',
+    'active' => '1',
+    'details' => array(
+      'sql' => array(
+        'FIELD_LOAD_CURRENT' => array(
+          'field_data_field_product_taxo15' => array(
+            'tid' => 'field_product_taxo15_tid',
+          ),
+        ),
+        'FIELD_LOAD_REVISION' => array(
+          'field_revision_field_product_taxo15' => array(
+            'tid' => 'field_product_taxo15_tid',
+          ),
+        ),
+      ),
+    ),
+  ),
+  'foreign keys' => array(
+    'tid' => array(
+      'table' => 'taxonomy_term_data',
+      'columns' => array(
+        'tid' => 'tid',
+      ),
+    ),
+  ),
+  'indexes' => array(
+    'tid' => array(
+      'tid',
+    ),
+  ),
+  'field_name' => 'field_product_taxo15',
+  'type' => 'taxonomy_term_reference',
+  'module' => 'taxonomy',
+  'active' => '1',
+  'locked' => '0',
+  'cardinality' => '-1',
+  'deleted' => '0',
+  'columns' => array(
+    'tid' => array(
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => FALSE,
+    ),
+  ),
+  'bundles' => array(
+    'commerce_product' => array(
+      'product',
+    ),
+  ),
+	);
+}
+
+function ltv_migration_getinstance() {
+	return array(
+  'label' => 'Appliances-Brand',
+  'widget' => array(
+    'weight' => '36',
+    'type' => 'options_select',
+    'module' => 'options',
+    'active' => 1,
+    'settings' => array(),
+  ),
+  'settings' => array(
+    'user_register_form' => FALSE,
+  ),
+  'display' => array(
+    'default' => array(
+      'label' => 'above',
+      'type' => 'taxonomy_term_reference_link',
+      'settings' => array(),
+      'module' => 'taxonomy',
+      'weight' => 1,
+    ),
+    'line_item' => array(
+      'type' => 'hidden',
+      'label' => 'above',
+      'settings' => array(),
+      'weight' => 0,
+    ),
+    'node_teaser' => array(
+      'type' => 'hidden',
+      'label' => 'above',
+      'settings' => array(),
+      'weight' => 0,
+    ),
+  ),
+  'required' => 1,
+  'description' => '',
+  'commerce_cart_settings' => array(
+    'attribute_field' => 0,
+    'attribute_widget' => 'select',
+    'attribute_widget_title' => 'Appliances-Brand',
+  ),
+  'default_value' => NULL,
+  'field_name' => 'field_product_taxo15',
+  'entity_type' => 'commerce_product',
+  'bundle' => 'product',
+  'deleted' => '0',
+	);
+}
+
+function ltv_migration_form_alter(&$form, &$form_state, $form_id) {
+	if ($form_id == 'commerce_product_ui_product_form') {
+		//Kept in fieldset.
+		$form['fieldset_product_attr'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Product Attributes.'),
+		);
+
+		foreach($form as $key => $value) {
+			if (substr($key,0,18) == 'field_product_attr') {
+				//$form[$key]['#access'] = FALSE;
+				$form['fieldset_product_attr'][$key] = $form[$key];
+				unset($form[$key]);
+			}
+		}
+
+		$form['field_product_category']['#ajax'] = array(
+			'callback' => 'ltv_migration_ajax_callback',
+			'wrapper' => 'edit-fieldset-product-attr',
+		);
+
+
+		dsm($form); dsm($form_state);
+	}
+}
+
+function ltv_migration_ajax_callback($form, $form_state) {
+	return $form['fieldset_product_attr'];
+}
