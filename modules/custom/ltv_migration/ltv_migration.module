@@ -59,6 +59,7 @@ function ltv_migration_feeds_processor_targets_alter(&$targets, $entity_type, $b
 }
 
 function ltv_migration_commerce_product_callback($source, $entity, $target, $value, $mapping) {
+	dsm($source);
   dsm($entity);
 	dsm($target);
 	dsm($value);
@@ -82,67 +83,68 @@ function ltv_migration_text() {
 }
 
 function ltv_migration_feeds_before_import(FeedsSource $source) {
-	return;
- // Get import source.
- $result = $source->importer->fetcher->fetch($source);
- $result = $source->importer->parser->parse($source, $result);
+	// Get import source.
+	$result = $source->importer->fetcher->fetch($source);
+	$result = $source->importer->parser->parse($source, $result);
 
- // Get existing list of product attribures.
- $existing_pas = array();
- $vocs= taxonomy_get_vocabularies();
- foreach($vocs as $voc) {
-  $existing_pas[] = trim($voc->name);
- }
+  if ($source->id == 'category_importer') {
+		// Get existing list of product attribures.
+		$existing_pas = array();
+		$vocs= taxonomy_get_vocabularies();
+		foreach($vocs as $voc) {
+			$existing_pas[] = trim($voc->name);
+		}
 
-	$field = ltv_migration_getfield();
-	$instance = ltv_migration_getinstance();
+		$field = ltv_migration_getfield();
+		$instance = ltv_migration_getinstance();
 
- foreach($result->items as $key => $row) {
-  $product_category = $row['productcategory'];
-  foreach($row as $k => $attribute) {
-    if ($k != 'productcategory' && !empty($attribute)) {
-      $importing_pa = trim($product_category) . '-' . trim($attribute);
-      // Check product attribute already exist.
-      if (!in_array($importing_pa, $existing_pas)) {
-        // Create the product attribute.
-        $machine_readable = strtolower($importing_pa);
-        $machine_readable = preg_replace('@[^a-z0-9_]+@','_',$machine_readable);
-        taxonomy_vocabulary_save((object) array(
-          'name' => $importing_pa,
-          'machine_name' => $machine_readable,
-          'description' => t('Prodcut attribute used for !product_type.',array('!product_type' => trim($product_category))),
-          'module' => 'taxonomy',
-        ));
+		foreach($result->items as $key => $row) {
+			$product_category = $row['productcategory'];
+			foreach($row as $k => $attribute) {
+				if ($k != 'productcategory' && !empty($attribute)) {
+					$importing_pa = trim($product_category) . '-' . trim($attribute);
+					// Check product attribute already exist.
+					if (!in_array($importing_pa, $existing_pas)) {
+						// Create the product attribute.
+						$machine_readable = strtolower($importing_pa);
+						$machine_readable = preg_replace('@[^a-z0-9_]+@','_',$machine_readable);
+						taxonomy_vocabulary_save((object) array(
+							'name' => $importing_pa,
+							'machine_name' => $machine_readable,
+							'description' => t('Prodcut attribute used for !product_type.',array('!product_type' => trim($product_category))),
+							'module' => 'taxonomy',
+						));
 
-        $vocabulary_id = db_query("SELECT vid FROM {taxonomy_vocabulary} where name =:name",array(":name" => $importing_pa))->fetchField();
-				if ($vocabulary_id) {
-					if (field_info_field('field_product_attr' . $vocabulary_id) == NULL) {
-						// Add field to product type.
-						$field['settings']['allowed_values'][0]['vocabulary'] = $machine_readable;
-						$field['storage']['details']['sql']['FIELD_LOAD_CURRENT'] = array(
-							'field_data_field_product_attr' . $vocabulary_id => array(
-								'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
-							),
-						);
-						$field['storage']['details']['sql']['FIELD_LOAD_REVISION'] = array(
-							'field_revision_field_product_attr' . $vocabulary_id => array(
-								'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
-							),
-						);
-						$field['field_name'] = 'field_product_attr' . $vocabulary_id;
-						field_create_field($field);
+						$vocabulary_id = db_query("SELECT vid FROM {taxonomy_vocabulary} where name =:name",array(":name" => $importing_pa))->fetchField();
+						if ($vocabulary_id) {
+							if (field_info_field('field_product_attr' . $vocabulary_id) == NULL) {
+								// Add field to product type.
+								$field['settings']['allowed_values'][0]['vocabulary'] = $machine_readable;
+								$field['storage']['details']['sql']['FIELD_LOAD_CURRENT'] = array(
+									'field_data_field_product_attr' . $vocabulary_id => array(
+										'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
+									),
+								);
+								$field['storage']['details']['sql']['FIELD_LOAD_REVISION'] = array(
+									'field_revision_field_product_attr' . $vocabulary_id => array(
+										'tid' => 'field_product_attr'. $vocabulary_id .'_tid',
+									),
+								);
+								$field['field_name'] = 'field_product_attr' . $vocabulary_id;
+								field_create_field($field);
+							}
+							// Add Instance now.
+							$instance['label'] = $importing_pa;
+							$instance['widget']['weight'] = $vocabulary_id;
+							$instance['commerce_cart_settings']['attribute_widget_title'] = $importing_pa;
+							$instance['field_name'] = 'field_product_attr' . $vocabulary_id;
+							field_create_instance($instance);
+						}
 					}
-					// Add Instance now.
-					$instance['label'] = $importing_pa;
-					$instance['widget']['weight'] = $vocabulary_id;
-					$instance['commerce_cart_settings']['attribute_widget_title'] = $importing_pa;
-					$instance['field_name'] = 'field_product_attr' . $vocabulary_id;
-					field_create_instance($instance);
 				}
-      }
-    }
-  }
- }
+			}
+		}
+	}
 }
 
 /**
@@ -155,19 +157,36 @@ function ltv_migration_feeds_before_import(FeedsSource $source) {
 *   FeedsParserResult object that has been parsed from the source.
 */
 function ltv_migration_feeds_after_parse(FeedsSource $source, FeedsParserResult $result) {
-  foreach($result->items as $key => $row) {
-    $product_category = $row['productcategory'];
-    foreach($row as $k => $v) {
-      if ($k != 'productcategory' && !empty($v)) {
-        if (is_array($v) && key($v) == 'attribute1') {
-          $result->items[$key]['attribute1'][0] = trim($product_category) . '-' . trim($v[0]);
-        }
-        else {
-          $result->items[$key]['attribute1'][] = trim($product_category) . '-' . trim($v);
-        }
-      }
-    }
-  }
+	if ($source->id == 'product_display_importer') {
+		foreach($result->items as $key => $row) {
+			$product_attr = array();
+			foreach($row as $k => $value) {
+				$value = trim($value);
+				$k = trim($k);
+				if (($k != 'productdisplaytitle' && $k != 'productdisplaydesc') && !empty($value)) {
+					$product_attr[] = $k . ';' . trim($value);
+				}
+			}
+			dsm($product_attr);
+			$result->items[$key]['producttitle'] = implode('|', $product_attr);
+		}
+	}
+
+	if ($source->id == 'category_importer') {
+		foreach($result->items as $key => $row) {
+			$product_category = $row['productcategory'];
+			foreach($row as $k => $v) {
+				if ($k != 'productcategory' && !empty($v)) {
+					if (is_array($v) && key($v) == 'attribute1') {
+						$result->items[$key]['attribute1'][0] = trim($product_category) . '-' . trim($v[0]);
+					}
+					else {
+						$result->items[$key]['attribute1'][] = trim($product_category) . '-' . trim($v);
+					}
+				}
+			}
+		}
+	}
 }
 
 function ltv_migration_getfield() {
@@ -287,6 +306,61 @@ function ltv_migration_getinstance() {
 }
 
 function ltv_migration_form_alter(&$form, &$form_state, $form_id) {
+	if ($form_id == 'importer_node_form') {
+		$form['feeds']['FeedsCSVParser']['#access'] = FALSE;
+		$form['feeds']['#title'] = 'Upload CSV file';
+		$form['feeds']['FeedsFileFetcher']['upload']['#title'] = 'Previous Upload CSV file';
+		//Kept in fieldset.
+		$form['fieldset_product_attr'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('CSV upload template'),
+			'#attributes' => array('id' => array('fieldset_product_attr_id'), 'style' => 'display:none',),
+			'#weight' => $form['field_product_category']['#weight'] + 1,
+		);
+    $attributes = array();
+		// Get Select Category.
+		if (isset($form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'])) {
+			$category_id = $form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'];
+			$form['fieldset_product_attr']['#attributes'] = array('id' => array('fieldset_product_attr_id'),);
+			$category = taxonomy_term_load($category_id);
+			$category_name_count = strlen($category->name) + 1;
+			// Find the list of attributes to display.
+			foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
+				$attributes[$term['target_id']] = $term['target_id'];
+			}
+			$csv_array[0] = array('ProductDisplayTitle', 'ProductDisplayDesc', 'ProductTitle', 'ProductSKU', 'Price', 'Category',);
+			foreach(taxonomy_vocabulary_load_multiple($attributes) as $attribute) {
+				$csv_array[0][] = substr($attribute->name,$category_name_count);
+			}
+			//Create CSV file and save to location.
+			$file_dir = file_stream_wrapper_get_instance_by_uri('public://')->getDirectoryPath() . '/product-import/' . $category->name;
+			if (file_prepare_directory($file_dir, FILE_CREATE_DIRECTORY)) {
+				file_prepare_directory($file_dir, FILE_MODIFY_PERMISSIONS);
+				$CSVFileName = $file_dir . '/' . preg_replace('@[^a-z0-9_]+@','_', strtolower($category->name)) . '_template' . '.csv';
+				$fp = fopen($CSVFileName, 'w');
+				foreach ($csv_array as $fields) {
+					fputcsv($fp, $fields);
+				}
+				fclose($fp);
+				$form['fieldset_product_attr']['csv_template'] = array(
+					'#markup' => '<div class="csv-template">Dowload the sample template file. ' .  l(t('Sample Template'), $CSVFileName, array('attributes' => array('title' => 'Click here to download'))),
+				);
+			}
+			else {
+				drupal_set_message(t("Directory may not exists or not is writable"));
+			}
+
+		}
+
+		$form['field_product_category']['und']['#ajax'] = array(
+			'callback' => 'ltv_migration_ajax_callback',
+			'wrapper' => 'fieldset_product_attr_id',
+		);
+
+	}
+
+
+
 	if ($form_id == 'product_display_node_form') {
 		if (isset($form['field_product'][LANGUAGE_NONE]['form'])) {
 			//Kept in fieldset.
