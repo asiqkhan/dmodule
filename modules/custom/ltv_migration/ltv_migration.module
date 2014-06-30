@@ -59,11 +59,27 @@ function ltv_migration_feeds_processor_targets_alter(&$targets, $entity_type, $b
 }
 
 function ltv_migration_commerce_product_callback($source, $entity, $target, $value, $mapping) {
-	dsm($source);
-  dsm($entity);
-	dsm($target);
-	dsm($value);
-	dsm($mapping);
+	global $user;
+  $value_parts = explode('|', $value);
+	$product_fields = array();
+	foreach($value_parts as $field_data) {
+		$field_data_parts = explode(';', $field_data);
+		$product_fields[$field_data_parts[0]] = $field_data_parts[1];
+	}
+
+	$product = commerce_product_new('product');
+	$product->uid = $user->uid;
+	$product->sku = $product_fields['productsku'];
+	$product->title = $product_fields['producttitle'];
+	$product->language = LANGUAGE_NONE;
+	$product->commerce_price = array(LANGUAGE_NONE => array( 0 => array(
+	 'amount' => $product['price'],
+	 'currency_code' => commerce_default_currency(),
+	)));
+
+	$cp->my_field[LANGUAGE_NONE][0]['value'] = 22;
+	commerce_product_save($cp);
+
 }
 
 /**
@@ -167,7 +183,6 @@ function ltv_migration_feeds_after_parse(FeedsSource $source, FeedsParserResult 
 					$product_attr[] = $k . ';' . trim($value);
 				}
 			}
-			dsm($product_attr);
 			$result->items[$key]['producttitle'] = implode('|', $product_attr);
 		}
 	}
@@ -431,6 +446,25 @@ function ltv_migration_form_alter(&$form, &$form_state, $form_id) {
 			'wrapper' => 'fieldset_product_attr_id',
 		);
 	}
+}
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function ltv_migration_element_info_alter(&$elements) {
+  foreach ($elements as &$element) {
+    // Replace #pre_render function.
+    if (!empty($element['#pre_render']) && ($key = array_search('form_pre_render_fieldset', $element['#pre_render'])) !== FALSE) {
+      $element['#pre_render'][$key] = '_ltv_migration_form_html_cleanup';
+    }
+  }
+}
+
+function _ltv_migration_form_html_cleanup($element) {
+	if (in_array('fieldset_product_attr',$element['#parents'], TRUE)) {
+		$element['#id'] = 'fieldset_product_attr_id';
+	}
+	return $element;
 }
 
 function ltv_migration_ajax_callback($form, $form_state) {
