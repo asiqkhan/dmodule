@@ -377,94 +377,87 @@ function ltv_migration_form_alter(&$form, &$form_state, $form_id) {
 
 
 	if ($form_id == 'product_display_node_form') {
-		dsm($form_id);
+		// New product Add form.
 		if (isset($form['field_product'][LANGUAGE_NONE]['form'])) {
-			//Kept in fieldset.
-			$form['field_product'][LANGUAGE_NONE]['form']['fieldset_product_attr'] = array(
-				'#type' => 'fieldset',
-				'#title' => t('Product Attributes.'),
-				'#attributes' => array('id' => array('fieldset_product_attr_id'), 'style' => 'display:none;',),
-				'#weight' => $form['field_product'][LANGUAGE_NONE]['form']['field_product_category']['#weight'] + 1,
-			);
-			$attributes = array();
-			// Get Select Category.
-
-
-			if (isset($form_state['values']['field_product'][LANGUAGE_NONE]['form']['field_product_category'][LANGUAGE_NONE][0]['tid'])) {
-				$category_id = $form_state['values']['field_product'][LANGUAGE_NONE]['form']['field_product_category'][LANGUAGE_NONE][0]['tid'];
-				$form['field_product'][LANGUAGE_NONE]['form']['fieldset_product_attr']['#attributes'] = array('id' => array('fieldset_product_attr_id'),);
-				$category = taxonomy_term_load($category_id);
-				// Find the list of attributes to display.
-				foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
-					$attributes[$term['target_id']] = $term['target_id'];
-				}
-			}
-			foreach($form['field_product'][LANGUAGE_NONE]['form'] as $key => $value) {
-				if (substr($key,0,18) == 'field_product_attr') {
-					if (!in_array(substr($key,18), $attributes)) {
-						$form['field_product'][LANGUAGE_NONE]['form'][$key]['#access'] = FALSE;
+			$categories = $form['field_product'][LANGUAGE_NONE]['form']['field_product_category']['und']['#options'];
+			$fhsname = 'field_product[' . $form['field_product']['#language'] . '][form][field_product_category][' . $form['field_product'][LANGUAGE_NONE]['form']['field_product_category']['#language'] . ']';
+			foreach($categories as $key => $value) {
+				if ($category = taxonomy_term_load($key)) {
+					foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
+						//$attributes[$term['target_id']] = $term['target_id'];
+						if (isset($form['field_product'][LANGUAGE_NONE]['form']['field_product_attr' . $term['target_id']])) {
+							$form['field_product'][LANGUAGE_NONE]['form']['field_product_attr' . $term['target_id']]['#states'] = array(
+								'visible' => array(
+									':input[name="'. $fhsname .'"]' => array('value' => trim($key)),
+								),
+							);
+						}
 					}
-					$form['field_product'][LANGUAGE_NONE]['form']['fieldset_product_attr'][$key] = $form['field_product'][LANGUAGE_NONE]['form'][$key];
-					unset($form['field_product'][LANGUAGE_NONE]['form'][$key]);
 				}
 			}
-			$form['field_product'][LANGUAGE_NONE]['form']['field_product_category']['und']['#ajax'] = array(
-				'callback' => 'ltv_migration_ajax_callback2',
-				'wrapper' => 'fieldset_product_attr_id',
-			);
+			$form['#validate'][] = 'ltv_migration_product_display_form_validate';
+			dsm($form);
 		}
 	}
 
 	if ($form_id == 'commerce_product_ui_product_form') {
-		dsm($form_id);
 		//Kept in fieldset.
 		$form['fieldset_product_attr'] = array(
 			'#type' => 'fieldset',
 			'#title' => t('Product Attributes.'),
-			'#attributes' => array('id' => array('fieldset_product_attr_id'), 'style' => 'display:none',),
+			'#attributes' => array('id' => array('fieldset_product_attr_id')),
 			'#weight' => $form['field_product_category']['#weight'] + 1,
+			'#description' => t('Select a product category to list respective attributes.'),
 		);
-    $attributes = array();
-		// Get Select Category.
-		$category_id = 0;
-		if (isset($form['field_product_category']['und']['#default_value'][0]) && !empty($form['field_product_category']['und']['#default_value'][0])) {
-			$category_id = $form['field_product_category']['und']['#default_value'][0];
-		}
-		if (isset($form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid']) && !empty($form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'])) {
-			$category_id = $form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'];
-		}
 
-		if ($category_id) {
-			$form['fieldset_product_attr']['#attributes'] = array('id' => array('fieldset_product_attr_id'),);
-			$category = taxonomy_term_load($category_id);
-			// Find the list of attributes to display.
-			foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
-				$attributes[$term['target_id']] = $term['target_id'];
+		$categories = $form['field_product_category']['und']['#options'];
+		$fhsname = 'field_product_category['. $form['field_product_category']['#language'] .']';
+		foreach($categories as $key => $value) {
+			if ($category = taxonomy_term_load($key)) {
+				foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
+				  //$attributes[$term['target_id']] = $term['target_id'];
+					if (isset($form['field_product_attr' . $term['target_id']])) {
+						$form['field_product_attr' . $term['target_id']]['#states'] = array(
+							'visible' => array(
+								':input[name="'. $fhsname .'"]' => array('value' => trim($key)),
+							),
+						);
+					}
+			  }
 			}
 		}
-
 		foreach($form as $key => $value) {
 			if (substr($key,0,18) == 'field_product_attr') {
-				if (!in_array(substr($key,18), $attributes)) {
-					$form[$key]['#access'] = FALSE;
-					$form[$key]['und']['#default_value'] = array();
-					if (isset($form_state['values'][$key][LANGUAGE_NONE][0]['tid']) && $form_state['values'][$key][LANGUAGE_NONE][0]['tid'] != NULL) {
-						$form_state['values'][$key][LANGUAGE_NONE][0]['tid'] = NULL;
-						$form_state['complete form']['fieldset_product_attr'][$key][LANGUAGE_NONE]['#default_value'] = array();
-					}
-				}
 				$form['fieldset_product_attr'][$key] = $form[$key];
 				unset($form[$key]);
 			}
 		}
-		dsm($form_state);
-
-		$form['field_product_category']['und']['#ajax'] = array(
-			'callback' => 'ltv_migration_ajax_callback',
-			'wrapper' => 'fieldset_product_attr_id',
-		);
+    $form['#validate'][] = 'ltv_migration_product_form_validate';
 	}
 }
+
+function ltv_migration_product_form_validate($form, &$form_state) {
+	$category_id = $form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'];
+	$attributes = array();
+	if ($category = taxonomy_term_load($category_id)) {
+		foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
+			$attributes[$term['target_id']] = $term['target_id'];
+		}
+	}
+
+	foreach($form_state['values'] as $key => $value) {
+		if (substr($key,0,18) == 'field_product_attr') {
+			if (!in_array(substr($key,18), $attributes)) {
+				$form_state['values'][$key][LANGUAGE_NONE][0]['tid'] = NULL;
+			}
+		}
+	}
+}
+
+function ltv_migration_product_display_form_validate($form, &$form_state) {
+
+}
+
 
 /**
  * Implements hook_element_info_alter().
