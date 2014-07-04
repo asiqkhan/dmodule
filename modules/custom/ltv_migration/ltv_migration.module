@@ -401,12 +401,14 @@ function ltv_migration_form_alter(&$form, &$form_state, $form_id) {
 			$fhsname = 'field_product[' . $form['field_product']['#language'] . '][form][field_product_category][' . $form['field_product'][LANGUAGE_NONE]['form']['field_product_category']['#language'] . ']';
 			$form['field_product'][LANGUAGE_NONE]['form'] = ltv_migration_addcondition($form['field_product'][LANGUAGE_NONE]['form'], $categories, $fhsname);
 		}
+		$form['#validate'][] = 'ltv_migration_product_form_validate';
 	}
 
 	if ($form_id == 'commerce_product_ui_product_form') {
 		$categories = $form['field_product_category']['und']['#options'];
 		$fhsname = 'field_product_category['. $form['field_product_category']['#language'] .']';
 		$form = ltv_migration_addcondition($form, $categories, $fhsname);
+		$form['#validate'][] = 'ltv_migration_product_form_validate';
 	}
 }
 
@@ -425,13 +427,12 @@ function ltv_migration_addcondition($form, $categories, $fhsname) {
 			}
 		}
 	}
-	$form['#validate'][] = 'ltv_migration_product_form_validate';
 
 	return $form;
 }
 
-function ltv_migration_product_form_validate($form, &$form_state) {
-	$category_id = $form_state['values']['field_product_category'][LANGUAGE_NONE][0]['tid'];
+function ltv_migration_dependency_validation($form_state) {
+	$category_id = $form_state['field_product_category'][LANGUAGE_NONE][0]['tid'];
 	$attributes = array();
 	if ($category = taxonomy_term_load($category_id)) {
 		foreach($category->field_taxo_attributes[LANGUAGE_NONE] as $term) {
@@ -439,15 +440,36 @@ function ltv_migration_product_form_validate($form, &$form_state) {
 		}
 	}
 
-	foreach($form_state['values'] as $key => $value) {
+	foreach($form_state as $key => $value) {
 		if (substr($key,0,18) == 'field_product_attr') {
 			if (!in_array(substr($key,18), $attributes)) {
-				$form_state['values'][$key][LANGUAGE_NONE][0]['tid'] = NULL;
+				$form_state[$key][LANGUAGE_NONE][0]['tid'] = NULL;
 			}
 		}
 	}
 
 	dsm($form_state);
+	return $form_state;
+}
+
+function ltv_migration_product_form_validate($form, &$form_state) {
+  if ($form['#form_id'] == 'commerce_product_ui_product_form') {
+		$form_state['values'] = ltv_migration_dependency_validation($form_state['values']);
+	}
+
+	if ($form['#form_id']  == 'product_display_node_form') {
+		// Get edited form.
+		$form_array = array();
+		foreach($form['field_product']['und']['entities'] as $key => $value) {
+			if (is_array($value) && isset($value['form'])) {
+				$form_state['values']['field_product']['und']['entities'][$key]['form'] = ltv_migration_dependency_validation($form_state['values']['field_product']['und']['entities'][$key]['form']);
+			}
+		}
+		// New product Add form.
+		if (isset($form['field_product'][LANGUAGE_NONE]['form'])) {
+			$form_state['values']['field_product'][LANGUAGE_NONE]['form'] = ltv_migration_dependency_validation($form_state['values']['field_product'][LANGUAGE_NONE]['form']);
+		}
+	}
 }
 
 function ltv_migration_product_display_form_validate($form, &$form_state) {
