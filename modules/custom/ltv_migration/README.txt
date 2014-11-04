@@ -264,3 +264,102 @@ function metatag_token_process_nodemetatag($metatags) {
 
     // Process it for node metatag replacement to avoid infanite recursion.
     $metatags = metatag_token_process_nodemetatag($metatags);
+================================================================================================================
+---module file----
+
+/**
+ * Loop through metatags to replace node-metatag-token
+ * to it's actual node field value to avoid recursion.
+ */
+function metatag_token_process_nodemetatag($metatags) {
+  // Find entities which have metatag enabled.
+  $entities = entity_get_info();
+  $metatag_entities = array();
+  foreach ($entities as $entity) {
+    if (isset($entity['metatags']) && $entity['metatags']) {
+      $metatag_entities[$entity['token type']] = $entity['token type'];
+    }
+  }
+
+  foreach ($metatags as $metatag => $data) {
+    // Explode all metatag in field.
+    preg_match_all("^\[(.*?)\]^", $data['value'], $data_tokens, PREG_PATTERN_ORDER);
+    if (!empty($data_tokens[1]) && is_array($data_tokens[1])) {
+      foreach($data_tokens[1] as $key => $value) {
+        $metatag_parts = explode(':', $value);
+        // Check node-metatag-token. Like [node:metatag:<xyz>].
+        if (isset($metatag_entities[$metatag_parts[0]]) && $metatag_parts[1] == 'metatag') {
+          unset($metatag_parts[0]);
+          unset($metatag_parts[1]);
+          $entity_field = implode(':', $metatag_parts);
+          // Node metatag field may contain other node-metatag-token
+          // that need to be replace too.
+          $recursion[$entity_field] = array($entity_field);
+          $metatag_rep_value = metatag_token_nodemetatag_replace($metatags, $metatags[$entity_field]['value'], $metatag_entities, $recursion);
+          $metatags[$metatag]['value'] = str_replace($data_tokens[0][$key], $metatag_rep_value, $metatags[$metatag]['value']);
+        }
+      }
+    }
+  }
+
+  return $metatags;
+}
+
+    // Process it for node metatag replacement to avoid infanite recursion.
+    $metatags = metatag_token_process_nodemetatag($metatags);
+    
+  ----token.module----
+  /**
+ * Replace node-metatag-token with actual node metatag field value.
+ *
+ * @param array $metatags
+ *   A list node metatag tokens.
+ * @param string $token
+ *   A token need to be search and replace.
+ * @param array $metatag_entities
+ *   A list of entities which have metatag enabled.
+ * @param array $recursion
+ *   A list of processed node metadata fields.
+ *   To kept the track of fields replaced to avoid recursion.
+ *
+ * @return string
+ *   The replaced value of token.
+ */
+function metatag_token_nodemetatag_replace($metatags, $token, $metatag_entities, $recursion) {
+  dsm('loop - ' . $token);
+  $metatag_rep_value = '';
+  preg_match_all("^\[(.*?)\]^",$token,$data_tokens, PREG_PATTERN_ORDER);
+  // Check field has tokens.
+  if (!empty($data_tokens[1]) && is_array($data_tokens[1])) {
+    // Go through each token in field and find node-metatag-tokens.
+    foreach($data_tokens[1] as $key => $value) {
+      $metatag_parts = explode(':', $value);
+      if (isset($metatag_entities[$metatag_parts[0]]) && $metatag_parts[1] == 'metatag') {
+        unset($metatag_parts[0]);
+        unset($metatag_parts[1]);
+        // Node metatag field value.
+        $entity_field = implode(':', $metatag_parts);
+        // Check for recursion.
+        if (isset($recursion[$entity_field])) {
+          // Set token value to blank if recursion found.
+          $metatag_rep = '';
+        }
+        else {
+          $recursion[$entity_field] = array($entity_field);
+          $metatag_rep = metatag_token_nodemetatag_replace($metatags, $metatags[$entity_field]['value'], $metatag_entities, $recursion);
+        }
+        $metatag_rep_replace[] = $metatag_rep;
+      }
+      else {
+        $metatag_rep_replace[] = $data_tokens[0][$key];
+      }
+      $metatag_rep_search[] = $data_tokens[0][$key];
+    }
+    $metatag_rep_value .= str_replace($metatag_rep_search, $metatag_rep_replace, $token);
+
+    return $metatag_rep_value;
+  }
+  else {
+    return $token;
+  }
+}
