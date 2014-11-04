@@ -33,7 +33,7 @@ function metatag_token_process_nodemetatag($metatags, $token_type) {
   return $metatags;
 }
 
-// Process it for node metatag replacement to avoid infanite recursion.
+// Process it for node metatag replacement to avoid infinite recursion.
     $metatags = metatag_token_process_nodemetatag($metatags, $token_type);
     
   ---------------------metatag.module------------
