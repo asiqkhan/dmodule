@@ -363,3 +363,27 @@ function metatag_token_nodemetatag_replace($metatags, $token, $metatag_entities,
     return $token;
   }
 }
+===========================================
+  $text_tokens = token_scan($text);
+  if (isset($text_tokens[$token_type])) {
+    $metatags = $metatag_rep_search = $metatag_rep_replace = array();
+    foreach ($text_tokens[$token_type] as $key => $tokens) {
+      $entity = $data[$token_type];
+      $bundle = $entity->type;
+      $instance = "{node}:{$bundle}";
+      if (!empty($entity->metatags)) {
+        $language = metatag_entity_get_language('node', $entity);
+        if (!empty($entity->metatags[$language])) {
+          $metatags = $entity->metatags[$language];
+        }
+      }
+      $metatags += metatag_config_load_with_defaults($instance);
+      // Check node-metatag-token. Like [node:metatag:<xyz>].
+      $metatag_parts = explode(':', $tokens);
+      if ($metatag_parts[1] == 'metatag') {
+        $metatag_rep_search[] = $tokens;
+        $metatag_rep_replace[] = metatag_token_entitymetatagtoken_replace($metatags, $tokens, $token_type);
+      }
+    }
+    $text = str_replace($metatag_rep_search, $metatag_rep_replace, $text);
+  }
