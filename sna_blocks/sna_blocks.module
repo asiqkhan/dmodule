@@ -33,7 +33,8 @@ function sna_blocks_get_view_style_options($view_name, $display_id) {
   foreach($views as $view) {
     foreach($view->display as $display) {
       if ($display->display_plugin == 'block'
-          && isset($display->display_options['style_plugin']) &&  $display->display_options['style_plugin'] == 'snablocks'
+        && isset($display->display_options['style_plugin'])
+        &&  $display->display_options['style_plugin'] == 'snablocks'
       ) {
         if ($display->display_options['style_options']['sna_view_name'] == $view_name
           && $display->display_options['style_options']['sna_view_display_id'] == $display_id

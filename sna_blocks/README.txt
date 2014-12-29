@@ -11,16 +11,22 @@ This module depends on views(https://drupal.org/project/views) module.
 
 -- CONFIGURATION --
 
-  Go to your edit view. Select format as 'Simple Node Archive' and then settings
+  Go to your edit view. Select format as 'Simple Node Archive' and then settings.
+  Note: As the archive settings for each block is unique.
+  It is recommended to override view "Block: Style options" for blocks.
+  1.
+    * Archived field name:
+      Achived block will created based on this field.
+      Default value is node posted date "node_created" and for custom field use Date module(http://drupal.org/project/date).
+      Remember to add this field in views "FIELDS" list.
+  2. A page is required to show the archive result. So first created view page then use below setting for page.
     * View machine name :
-      View machine name to which the archive block will attach.
+      The machine name of the view whose page is used to display archive result.
     * View page display I D:
-      View page display id and the archive block will attache to that page.
+      The view page display id, e.g. page_1
     * sna_view_page_url:
-      Attach page url.
-    * Field Name:
-      Achive will created based on field. Require <a href="http://drupal.org/project/date" target="_blank">Date module </a>.
-      Add the same field in views fields list.
+      Page url.
+  3. Theme archive block.
     * Use Jquerymenu Module:
       Check this box if you want to use Jquerymenu module to theme
       archive blocks.
