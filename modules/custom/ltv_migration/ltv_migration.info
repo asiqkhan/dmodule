@@ -93,3 +93,95 @@ function metatag_token_nodemetatag_replace($metatags, $token, $token_type, $recu
     return $token;
   }
 }
+
+============================== token_filter.module
+/**
+ * Filter process callback for the token input filter.
+ */
+function _token_filter_filter_tokens($text, $filter, $format, $langcode, $cache, $cache_id) {
+  $data = array();
+  $options = array();
+  $token_type = '';
+  $entity_type = '';
+  $bundle = '';
+  // Attempt to fetch the entity that is being viewed via a backtrace to the
+  // field_attach_view($entity_type, $entity) function and parameters §if found.
+  $backtrace = debug_backtrace();
+  foreach ($backtrace as $caller) {
+    if ($caller['function'] == 'field_attach_view') {
+      $entity_type = $caller['args'][0];
+      $entity = $caller['args'][1];
+      $token_type = token_get_entity_mapping('entity', $entity_type);
+      $bundle = $entity->type;
+      $data[$token_type] = $entity;
+      // Use the proper language code that field_attach_view was called with.
+      if ($langcode = $caller['args'][3]) {
+        $language_list = language_list();
+        if (!empty($language_list[$langcode])) {
+          $options['language'] = $language_list[$langcode];
+        }
+      }
+      break;
+    }
+    // For taxonomy_term.
+    elseif ($caller['function'] == 'taxonomy_term_page') {
+      $entity = $caller['args'][0];
+      $token_type = 'term';
+      $data[$token_type] = $entity;
+      $bundle = $entity->vocabulary_machine_name;
+      break;
+    }
+    // For metatags.
+    elseif ($caller['function'] == 'metatag_generate_entity_metatags') {
+      $entity_type = $caller['args'][1];
+      $entity = $caller['args'][0];
+      $token_type = token_get_entity_mapping('entity', $entity_type);
+      $data[$token_type] = $entity;
+      // @todo Need to find $bundle in better way.
+      if ($entity_type == 'taxonomy_term') {
+        $bundle = $entity->vocabulary_machine_name;
+      }
+      else {
+        $bundle = $entity->type;
+      }
+      if ($langcode = $caller['args'][2]) {
+        $language_list = language_list();
+        if (!empty($language_list[$langcode])) {
+          $options['language'] = $language_list[$langcode];
+        }
+      }
+      break;
+    }
+    elseif ($caller['function'] == '_drupal_bootstrap_full' || $caller == 'menu_execute_active_handler') {
+      // There is no point in going back this far, so just stop.
+      break;
+    }
+  }
+  // For entitymetatagtokens, to avoid infinite loop.
+  // Ensure patch applied - https://www.drupal.org/node/2198669.
+  $text_tokens = token_scan($text);
+  if (isset($text_tokens[$token_type])) {
+    $metatags = $metatag_rep_search = $metatag_rep_replace = array();
+    foreach ($text_tokens[$token_type] as $key => $tokens) {
+      $entity = $data[$token_type];
+      $instance = "{$entity_type}:{$bundle}";
+      if (!empty($entity->metatags)) {
+        $language = metatag_entity_get_language('node', $entity);
+        if (!empty($entity->metatags[$language])) {
+          $metatags = $entity->metatags[$language];
+        }
+      }
+      $metatags += metatag_config_load_with_defaults($instance);
+      // Check entity-metatag-token. Like [<entity_token_type>:metatag:<xyz>].
+      $metatag_parts = explode(':', $tokens);
+      if ($metatag_parts[1] == 'metatag') {
+        $metatag_rep_search[] = $tokens;
+        module_load_include('inc', 'metatag', 'metatag.tokens');
+        $metatag_rep_replace[] = metatag_token_entitymetatagtoken_replace($metatags, $tokens, $token_type);
+      }
+    }
+    $text = str_replace($metatag_rep_search, $metatag_rep_replace, $text);
+  }
+
+  return token_replace($text, $data, $options);
+}

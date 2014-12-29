@@ -1,0 +1,6 @@
+name = simple node arvhive
+description = Provide simple node archive style option for Views.
+core = 7.x
+package = Content display
+dependencies[] = views
+files[] = sna_blocks_plugin_style_snablocks.inc
