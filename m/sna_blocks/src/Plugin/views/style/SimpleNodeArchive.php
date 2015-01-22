@@ -21,6 +21,8 @@ use Drupal\Core\Form\FormStateInterface;
  *   id = "sna_blocks",
  *   title = @Translation("Simple Node Archive"),
  *   help = @Translation("Displays result in archive formatted, with month and year that link to achive page."),
+ *   theme = "sna_blocks_view_simplenodearchive",
+ *   theme_file = "sna_blocks.theme.inc",
  *   display_types = {"normal"}
  * )
  */
@@ -35,14 +37,14 @@ class SimpleNodeArchive extends StylePluginBase {
    *
    * @var bool
    */
-  protected $usesRowPlugin = TRUE;
+  protected $usesRowPlugin = FALSE;
 
   /**
    * Does the style plugin support custom css class for the rows.
    *
    * @var bool
    */
-  protected $usesRowClass = TRUE;
+  protected $usesRowClass = FALSE;
   
   /**
    * Does the style plugin support grouping of rows.
